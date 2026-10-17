@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>StockFlow · Inventory</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <header class="bg-white border-b">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white grid place-items-center font-bold">S</div>
+        <h1 class="text-xl font-semibold">StockFlow</h1>
+        <span class="text-sm text-slate-400 hidden sm:inline">Inventory Management</span>
+      </div>
+      <button onclick="openProductModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-4 py-2 rounded-lg">+ Add product</button>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+    <!-- Stats -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="bg-white rounded-xl border p-4"><p class="text-sm text-slate-500">Products</p><p id="s-products" class="text-2xl font-semibold">–</p></div>
+      <div class="bg-white rounded-xl border p-4"><p class="text-sm text-slate-500">Units in stock</p><p id="s-units" class="text-2xl font-semibold">–</p></div>
+      <div class="bg-white rounded-xl border p-4"><p class="text-sm text-slate-500">Stock value</p><p id="s-value" class="text-2xl font-semibold">–</p></div>
+      <div class="bg-white rounded-xl border p-4"><p class="text-sm text-slate-500">Low stock</p><p id="s-low" class="text-2xl font-semibold text-red-600">–</p></div>
+    </section>
+
+    <!-- Tabs + table -->
+    <section class="bg-white rounded-xl border">
+      <div class="flex gap-1 border-b px-4 pt-3">
+        <button id="tab-all" onclick="setTab('all')" class="tab px-3 py-2 text-sm font-medium border-b-2">All products</button>
+        <button id="tab-low" onclick="setTab('low')" class="tab px-3 py-2 text-sm font-medium border-b-2">Low stock</button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="text-left text-slate-500 bg-slate-50">
+            <tr>
+              <th class="px-4 py-2">Name</th><th class="px-4 py-2">SKU</th><th class="px-4 py-2">Category</th>
+              <th class="px-4 py-2 text-right">Qty</th><th class="px-4 py-2 text-right">Min</th>
+              <th class="px-4 py-2 text-right">Price</th><th class="px-4 py-2 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <p id="empty" class="hidden text-center text-slate-400 py-10">No products here.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="max-w-6xl mx-auto px-4 pb-8 text-xs text-slate-400 flex justify-between">
+    <span>Deployed via GitHub Actions → Docker Hub → Render</span>
+    <span>version <code id="version" class="bg-slate-100 px-1 rounded">…</code> · <a href="/docs" class="underline">API docs</a></span>
+  </footer>
+
+  <!-- Product modal -->
+  <div id="product-modal" class="hidden fixed inset-0 bg-black/40 grid place-items-center p-4">
+    <form id="product-form" class="bg-white rounded-xl w-full max-w-md p-6 space-y-3">
+      <h2 id="product-title" class="text-lg font-semibold">Add product</h2>
+      <input type="hidden" name="id" />
+      <label class="block text-sm">Name<input name="name" required class="mt-1 w-full border rounded-lg px-3 py-2" /></label>
+      <div class="grid grid-cols-2 gap-3">
+        <label class="block text-sm">SKU<input name="sku" required class="mt-1 w-full border rounded-lg px-3 py-2" /></label>
+        <label class="block text-sm">Category<input name="category" value="General" class="mt-1 w-full border rounded-lg px-3 py-2" /></label>
+        <label class="block text-sm">Quantity<input name="quantity" type="number" min="0" value="0" class="mt-1 w-full border rounded-lg px-3 py-2" /></label>
+        <label class="block text-sm">Min stock<input name="min_stock" type="number" min="0" value="5" class="mt-1 w-full border rounded-lg px-3 py-2" /></label>
+        <label class="block text-sm col-span-2">Price (₹)<input name="price" type="number" min="0" step="0.01" value="0" class="mt-1 w-full border rounded-lg px-3 py-2" /></label>
+      </div>
+      <p id="product-error" class="text-sm text-red-600"></p>
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button" onclick="closeModals()" class="px-4 py-2 text-sm rounded-lg border">Cancel</button>
+        <button class="px-4 py-2 text-sm rounded-lg bg-emerald-600 text-white">Save</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Stock modal -->
+  <div id="stock-modal" class="hidden fixed inset-0 bg-black/40 grid place-items-center p-4">
+    <form id="stock-form" class="bg-white rounded-xl w-full max-w-sm p-6 space-y-3">
+      <h2 class="text-lg font-semibold">Adjust stock</h2>
+      <p id="stock-product" class="text-sm text-slate-500"></p>
+      <input type="hidden" name="id" />
+      <div class="grid grid-cols-2 gap-2">
+        <label class="flex items-center gap-2 border rounded-lg px-3 py-2 text-sm"><input type="radio" name="dir" value="in" checked /> Stock in</label>
+        <label class="flex items-center gap-2 border rounded-lg px-3 py-2 text-sm"><input type="radio" name="dir" value="out" /> Stock out</label>
+      </div>
+      <label class="block text-sm">Units<input name="units" type="number" min="1" value="1" required class="mt-1 w-full border rounded-lg px-3 py-2" /></label>
+      <label class="block text-sm">Reason<input name="reason" placeholder="e.g. received shipment / sold" class="mt-1 w-full border rounded-lg px-3 py-2" /></label>
+      <p id="stock-error" class="text-sm text-red-600"></p>
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button" onclick="closeModals()" class="px-4 py-2 text-sm rounded-lg border">Cancel</button>
+        <button class="px-4 py-2 text-sm rounded-lg bg-emerald-600 text-white">Apply</button>
+      </div>
+    </form>
+  </div>
+
+<script>
+  let tab = 'all';
+  let products = [];
+  const inr = n => '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  async function api(path, opts = {}) {
+    const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      const d = body.detail;
+      throw new Error(Array.isArray(d) ? d.map(e => e.msg).join(', ') : (d || res.statusText));
+    }
+    return res.status === 204 ? null : res.json();
+  }
+
+  function setTab(t) {
+    tab = t;
+    document.querySelectorAll('.tab').forEach(b => {
+      const active = b.id === 'tab-' + t;
+      b.classList.toggle('border-emerald-600', active);
+      b.classList.toggle('text-emerald-700', active);
+      b.classList.toggle('border-transparent', !active);
+      b.classList.toggle('text-slate-500', !active);
+    });
+    load();
+  }
+
+  async function load() {
+    const [list, stats] = await Promise.all([
+      api(tab === 'low' ? '/api/products/low-stock' : '/api/products'),
+      api('/api/stats'),
+    ]);
+    products = list;
+    document.getElementById('s-products').textContent = stats.total_products;
+    document.getElementById('s-units').textContent = stats.total_units.toLocaleString('en-IN');
+    document.getElementById('s-value').textContent = inr(stats.total_value);
+    document.getElementById('s-low').textContent = stats.low_stock_count;
+
+    document.getElementById('empty').classList.toggle('hidden', list.length > 0);
+    document.getElementById('rows').innerHTML = list.map(p => `
+      <tr class="border-t ${p.low_stock ? 'bg-red-50' : ''}">
+        <td class="px-4 py-2 font-medium">${esc(p.name)}</td>
+        <td class="px-4 py-2 font-mono text-xs">${esc(p.sku)}</td>
+        <td class="px-4 py-2">${esc(p.category)}</td>
+        <td class="px-4 py-2 text-right ${p.low_stock ? 'text-red-600 font-semibold' : ''}">${p.quantity}</td>
+        <td class="px-4 py-2 text-right text-slate-500">${p.min_stock}</td>
+        <td class="px-4 py-2 text-right">${inr(p.price)}</td>
+        <td class="px-4 py-2 text-right whitespace-nowrap">
+          <button onclick="openStockModal(${p.id})" class="text-emerald-700 hover:underline">Stock</button>
+          <button onclick="openProductModal(${p.id})" class="ml-3 text-slate-600 hover:underline">Edit</button>
+          <button onclick="removeProduct(${p.id})" class="ml-3 text-red-600 hover:underline">Delete</button>
+        </td>
+      </tr>`).join('');
+  }
+
+  function closeModals() {
+    document.getElementById('product-modal').classList.add('hidden');
+    document.getElementById('stock-modal').classList.add('hidden');
+  }
+
+  function openProductModal(id) {
+    const form = document.getElementById('product-form');
+    form.reset();
+    document.getElementById('product-error').textContent = '';
+    const p = products.find(x => x.id === id);
+    document.getElementById('product-title').textContent = p ? 'Edit product' : 'Add product';
+    form.id.value = p ? p.id : '';
+    if (p) ['name', 'sku', 'category', 'quantity', 'min_stock', 'price'].forEach(k => form[k].value = p[k]);
+    document.getElementById('product-modal').classList.remove('hidden');
+  }
+
+  function openStockModal(id) {
+    const form = document.getElementById('stock-form');
+    form.reset();
+    document.getElementById('stock-error').textContent = '';
+    const p = products.find(x => x.id === id);
+    form.id.value = id;
+    document.getElementById('stock-product').textContent = `${p.name} (${p.sku}) — currently ${p.quantity} units`;
+    document.getElementById('stock-modal').classList.remove('hidden');
+  }
+
+  document.getElementById('product-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const f = e.target;
+    const body = {
+      name: f.name.value, sku: f.sku.value, category: f.category.value || 'General',
+      quantity: +f.quantity.value, min_stock: +f.min_stock.value, price: +f.price.value,
+    };
+    try {
+      await api(f.id.value ? `/api/products/${f.id.value}` : '/api/products', {
+        method: f.id.value ? 'PUT' : 'POST', body: JSON.stringify(body),
+      });
+      closeModals(); load();
+    } catch (err) { document.getElementById('product-error').textContent = err.message; }
+  });
+
+  document.getElementById('stock-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const f = e.target;
+    const units = +f.units.value;
+    const change = f.dir.value === 'out' ? -units : units;
+    try {
+      await api(`/api/products/${f.id.value}/stock`, { method: 'POST', body: JSON.stringify({ change, reason: f.reason.value }) });
+      closeModals(); load();
+    } catch (err) { document.getElementById('stock-error').textContent = err.message; }
+  });
+
+  async function removeProduct(id) {
+    const p = products.find(x => x.id === id);
+    if (!confirm(`Delete ${p.name}?`)) return;
+    await api(`/api/products/${id}`, { method: 'DELETE' });
+    load();
+  }
+
+  api('/health').then(h => document.getElementById('version').textContent = h.version.slice(0, 7)).catch(() => {});
+  setTab('all');
+</script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+# Local development: app + PostgreSQL
+#   docker compose up --build
+#   open http://localhost:8000
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: stockflow
+      POSTGRES_PASSWORD: stockflow
+      POSTGRES_DB: stockflow
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stockflow"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      args:
+        APP_VERSION: local
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://stockflow:stockflow@db:5432/stockflow
+      SEED_DATA: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
