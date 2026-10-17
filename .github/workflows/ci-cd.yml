@@ -94,13 +94,9 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Scan image for vulnerabilities (Trivy)
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: ${{ env.IMAGE_NAME }}:${{ github.sha }}
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          format: table
-          exit-code: "0"
+        continue-on-error: true
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest image --severity CRITICAL,HIGH --ignore-unfixed "$IMAGE_NAME:$GITHUB_SHA"
 
       - name: Push image (commit SHA + latest tags)
         uses: docker/build-push-action@v6
