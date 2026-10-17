@@ -117,9 +117,6 @@ jobs:
     name: Deploy to Render
     needs: build
     runs-on: ubuntu-latest
-    environment:
-      name: production
-      url: ${{ secrets.RENDER_APP_URL }}
 
     steps:
       - name: Trigger Render deploy
