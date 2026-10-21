@@ -5,7 +5,7 @@
 DevOps Lab Mini Project · Batch 11
 - Ashish Kumar (16010123084)
 - Ashvatth Joshi (16010123085)
-- Harsha (16010123145)
+- Harsh Shah (16010123140)
 
 StockFlow is a small inventory management web app (products, stock in/out, low-stock alerts, dashboard).
 The focus of the project is the **pipeline**: every push to `main` is automatically linted, tested,
